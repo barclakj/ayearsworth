@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+	<style>
+	body { font-family: sans-serif; font-size: 12px; color: #000000;}
+	</style>
+	<title>NFA - Kent Beck: A Year's Worth</title>
+
+	<script type="text/javascript" src="js/svg.js"></script>
+	<script type="text/javascript" src="js/bubblemap.js"></script>
+		
+</head>
+<body>
+	<div id="data" style="position: absolute; top: 0px; left: 0px; width: 20%; max-width: 20%; z-index: 1; padding-top: 30px; padding-left: 60px;">
+        <h2>Kent Beck: A Year's Worth</h2>
+        A few christmases ago I was messing about creating bubble maps - do doubt in some mince pie and port induced state of inebriation (quality of code is consequently as you'd expect).
+        <p/>
+        I'd long forgotten about this until <a href="https://www.kentbeck.com/">Kent Becks</a> recent post on <a href="https://medium.com/">medium.com</a> about trying to understand <a href="https://medium.com/@kentbeck_7670/a-years-worth-c1cbc3085e9d">A Year's Worth</a> of effort.
+        
+        <p/>This looked familiar and so with a little manipulation here's a simple utility to convert priority ordered stories into a visual bubble map.
+
+		
+        <h3>Task Information</h3>
+        <p/>Provide story information in priority ordered CSV format (&lt;points&gt;,&lt;story-name&gt;) to display map.
+        <p/>Name is optional.
+		<br/>
+		<textarea id="dataset" cols="30" rows="20">
+		</textarea>
+        <br/>
+        
+        <br/>Velocity: <input type="number" id="velocity" onchange="javascript:drawMyBubbles();" value="50" min="1" max="9999"/> points per sprint.
+		<br/>Show points: <input type="checkbox" id="showval" onchange="javascript:drawMyBubbles();"/>
+
+        <p/><input type="button" onclick="javascript:bubbleishous();" value="Submit"/>
+        <p/>
+        <div id="summary" style="background-color: yellow;">
+            <h3>Estimate</h3>
+            Estimating <span style="font-weight: bold;" id="estimate">...</span> sprints to complete <span style="font-weight: bold;" id="totalpoints">...</span> points across <span style="font-weight: bold;" id="workitems">...</span> stories.
+            <p/>Optimal duration is <span style="font-weight: bold;" id="optimal">...</span> sprints.
+            
+            
+        </div>
+
+       
+	</div>
+
+		<!--  onmouseup="javascript:mouseUp(evt);" onmousemove="javascript:mouseMove(evt);" onmousedown="javascript:mouseDown(evt);" -->
+
+		
+	<div id="main" style="position: absolute; top: 0px; left: 0px; width: 100%; height: 100%; background-color: #FFFFFF; z-index: 0;"><svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:html="http://www.w3.org/1999/xhtml" id="svgimage" version="1.1" width="100%" height="100%"><g id="canvas" z-index="1"></g></svg></div>
+	<div id="switcher" style="position: absolute; top: 0px; left: 0px; z-index: 2; padding-top: 10px; padding-left: 10px;">
+		<a href="javascript:viewSwitch();">[ Show/Hide Editor ]</a>
+	</div>
+	
+	<script language="javascript">
+		function viewSwitch() {
+			if (document.getElementById('main').style.zIndex=="0") {
+				document.getElementById('main').style.zIndex="1";
+				document.getElementById('data').style.zIndex="0";
+			} else {
+				document.getElementById('main').style.zIndex="0";
+				document.getElementById('data').style.zIndex="1";
+			}
+			
+
+		}
+
+		var DELIM = ",";
+
+		function getValueByIndex(d, idx) {
+			var i = 0;
+			var pos = 0;
+			while (i<idx) {
+				pos = d.indexOf(DELIM, pos+1);
+				if (pos==-1) {
+					pos = d.length;
+				}
+				i++;
+			}
+			if (pos!=-1) {
+				if (i==0) pos=-1;
+				return getValueByPos(d, pos+1);
+			} else {
+				return null;
+			}
+		}
+
+		function  getValueByPos(d, strt) {
+			var val = null;
+			var end = d.indexOf(DELIM, strt+1);
+			if (end==-1) end = d.length;
+			val = d.substring(strt, end);
+			if (val!=null && val.trim()=="") val = null;
+			return val;
+		}
+
+		function bubbleishous() {
+			var val = document.getElementById('dataset').value;
+    		var lines = val.split('\n');
+            mybubbles = [];
+            var totalpoints = 0;
+			for(var i = 0;i < lines.length;i++){
+
+			 	var val = getValueByIndex(lines[i], 0);
+			 	var name = getValueByIndex(lines[i], 1);
+			 	var url = getValueByIndex(lines[i], 2);
+			 	var style = getValueByIndex(lines[i], 3);
+                var textstyle = getValueByIndex(lines[i], 4);
+                 
+               
+
+			 	if (val!=null) {
+				 	var b = new Bubble();
+                    b.volume = parseFloat(val);
+                    totalpoints += b.volume;
+                    if (b.volume>0) {
+                        calculateBubbleRadius(b);
+                        b.value = val;
+                        if (name!=null) b.name = name;
+                        if (style!=null) b.style = style;
+                        if (textstyle!=null) b.textstyle = textstyle;
+                        if (url!=null) b.url = url;
+                        mybubbles.push(b);
+                    }
+                }    
+                document.getElementById("totalpoints").innerHTML = totalpoints;
+                document.getElementById("workitems").innerHTML = mybubbles.length;
+            }
+            
+			position(mybubbles);
+			drawMyBubbles();
+			// viewSwitch();
+		}
+
+		var mybubbles = null;
+		var bubbleMap = new BubbleMap();
+
+		function init() {
+			mybubbles = [];
+            var str = "";
+			for (var i=0;i<100;i++) {
+                var vol = Math.round(Math.random()*50.0)+1;
+                str = str + vol + ",Story " + (i+1) + "\n";
+			}
+            document.getElementById('dataset').value = str;
+            bubbleishous();
+		}
+
+		function drawMyBubbles() {
+			var rootNode = document.getElementById('canvas');
+			clearElement(rootNode);
+
+			if (mybubbles!=null && mybubbles.length>0) {
+				var width = document.getElementById('main').clientWidth;
+				var height = document.getElementById('main').clientHeight;
+				
+				var hw = width/2.0;
+				var hh = height/2.0;
+
+				bubbleMap.minx = 0.0;
+				bubbleMap.maxx = width;
+				bubbleMap.miny = 0.0;
+				bubbleMap.maxy = height;
+				bubbleMap.zoom = 1.0;
+				bubbleMap.rootNode = rootNode;
+				bubbleMap.xoffset = 0.0;
+                bubbleMap.yoffset = 0.0;
+
+                bubbleMap.unitVolume = document.getElementById("velocity").value;
+                
+                var showVals = false;
+                if (document.getElementById("showval").checked) showVals = true;
+
+                var unitsEstimated = bubbleMap.renderBubbles(mybubbles, showVals);
+                document.getElementById("estimate").innerHTML = unitsEstimated;
+                document.getElementById("optimal").innerHTML = Math.ceil(theoreticalUnitsOfWork(mybubbles, bubbleMap.unitVolume));
+			}
+			// document.getElementById('svgsrc').value = document.getElementById('main').innerHTML;
+		}
+
+		window.onresize = function() {
+    		drawMyBubbles();
+		}
+
+		init();
+		drawMyBubbles();
+	</script>
+</body>
+
+</html>
